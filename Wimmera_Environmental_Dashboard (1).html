@@ -1,0 +1,971 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wimmera Catchment — Environmental Quality Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap');
+
+  :root {
+    --bg: #0a0f1a;
+    --panel: #111827;
+    --panel2: #1a2236;
+    --border: #1e2d45;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --acc1: #22d3ee; /* cyan */
+    --acc2: #f59e0b; /* amber */
+    --acc3: #34d399; /* green */
+    --acc4: #f87171; /* red */
+    --acc5: #a78bfa; /* violet */
+    --site-c: #f59e0b;
+    --site-g: #34d399;
+    --site-h: #f87171;
+    --site-w: #22d3ee;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'DM Sans', sans-serif; font-size: 13px; min-height: 100vh; }
+
+  /* HEADER */
+  .header {
+    background: linear-gradient(135deg, #0d1b2e 0%, #0a1628 50%, #0d1b2e 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 32px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-left { display: flex; align-items: center; gap: 18px; }
+  .logo-badge {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: linear-gradient(135deg, var(--acc1), var(--acc3));
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 800; color: #0a0f1a;
+  }
+  .header-title { font-family: 'Barlow Condensed', sans-serif; }
+  .header-title h1 { font-size: 22px; font-weight: 800; letter-spacing: 0.5px; color: #fff; line-height: 1; }
+  .header-title p { font-size: 12px; color: var(--muted); margin-top: 2px; letter-spacing: 1px; text-transform: uppercase; }
+  .header-right { display: flex; align-items: center; gap: 24px; }
+  .data-badge { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 14px; }
+  .data-badge span { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; }
+  .data-badge strong { display: block; font-size: 13px; color: var(--acc1); font-weight: 500; }
+
+  /* FILTER BAR */
+  .filter-bar {
+    background: var(--panel); border-bottom: 1px solid var(--border);
+    padding: 10px 32px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .filter-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.8px; margin-right: 4px; }
+  .filter-btn {
+    padding: 5px 14px; border-radius: 20px; border: 1px solid var(--border);
+    background: transparent; color: var(--muted); cursor: pointer; font-size: 12px; font-family: 'DM Sans', sans-serif;
+    transition: all 0.2s;
+  }
+  .filter-btn:hover { border-color: var(--acc1); color: var(--acc1); }
+  .filter-btn.active { background: var(--acc1); border-color: var(--acc1); color: #0a0f1a; font-weight: 600; }
+  .filter-divider { width: 1px; height: 20px; background: var(--border); margin: 0 4px; }
+
+  /* SITE COLOR DOTS */
+  .site-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 5px; }
+
+  /* MAIN LAYOUT */
+  .main { padding: 20px 32px; display: flex; flex-direction: column; gap: 20px; }
+
+  /* KPI ROW */
+  .kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+  .kpi-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 16px 18px; position: relative; overflow: hidden; cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+  }
+  .kpi-card:hover { transform: translateY(-2px); }
+  .kpi-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  }
+  .kpi-card.concongella::before { background: var(--site-c); }
+  .kpi-card.glenlofty::before { background: var(--site-g); }
+  .kpi-card.heiffer::before { background: var(--site-h); }
+  .kpi-card.wimmera::before { background: var(--site-w); }
+  .kpi-card.concongella:hover { border-color: var(--site-c); }
+  .kpi-card.glenlofty:hover { border-color: var(--site-g); }
+  .kpi-card.heiffer:hover { border-color: var(--site-h); }
+  .kpi-card.wimmera:hover { border-color: var(--site-w); }
+  .kpi-site { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px; }
+  .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .kpi-metric { }
+  .kpi-val { font-family: 'Barlow Condensed', sans-serif; font-size: 22px; font-weight: 700; line-height: 1; }
+  .kpi-unit { font-size: 10px; color: var(--muted); }
+  .kpi-lbl { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+  .risk-badge {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 10px;
+  }
+  .risk-critical { background: rgba(248,113,113,0.2); color: #f87171; border: 1px solid rgba(248,113,113,0.3); }
+  .risk-high { background: rgba(245,158,11,0.2); color: #f59e0b; border: 1px solid rgba(245,158,11,0.3); }
+  .risk-moderate { background: rgba(34,211,238,0.15); color: #22d3ee; border: 1px solid rgba(34,211,238,0.3); }
+
+  /* CHART GRID */
+  .chart-row { display: grid; gap: 14px; }
+  .chart-row-2 { grid-template-columns: 1fr 1fr; }
+  .chart-row-3 { grid-template-columns: 2fr 1fr 1fr; }
+  .chart-row-full { grid-template-columns: 1fr; }
+
+  .chart-card {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 18px 20px; display: flex; flex-direction: column; gap: 12px;
+  }
+  .chart-header { display: flex; align-items: flex-start; justify-content: space-between; }
+  .chart-title { font-family: 'Barlow Condensed', sans-serif; font-size: 15px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: #fff; }
+  .chart-sub { font-size: 11px; color: var(--muted); margin-top: 2px; }
+  .chart-tag { font-size: 10px; padding: 3px 8px; border-radius: 4px; background: var(--panel2); color: var(--muted); border: 1px solid var(--border); }
+  .chart-body { position: relative; }
+
+  /* THRESHOLD LINE */
+  .threshold-note { font-size: 10px; color: var(--muted); font-style: italic; }
+  .threshold-note span { color: var(--acc4); }
+
+  /* INSIGHT PANEL */
+  .insight-panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px 24px;
+  }
+  .insight-title { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 16px; color: var(--acc1); display: flex; align-items: center; gap: 8px; }
+  .insight-title::before { content: ''; width: 4px; height: 18px; background: var(--acc1); border-radius: 2px; }
+  .insights-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .insight-item {
+    background: var(--panel2); border: 1px solid var(--border); border-radius: 10px;
+    padding: 14px 16px; border-left: 3px solid;
+  }
+  .insight-item.critical { border-left-color: var(--acc4); }
+  .insight-item.warning { border-left-color: var(--acc2); }
+  .insight-item.info { border-left-color: var(--acc1); }
+  .insight-item.action { border-left-color: var(--acc3); }
+  .insight-head { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 6px; }
+  .insight-item.critical .insight-head { color: var(--acc4); }
+  .insight-item.warning .insight-head { color: var(--acc2); }
+  .insight-item.info .insight-head { color: var(--acc1); }
+  .insight-item.action .insight-head { color: var(--acc3); }
+  .insight-text { font-size: 12px; color: #94a3b8; line-height: 1.5; }
+  .insight-text strong { color: var(--text); }
+
+  /* ACTION TABLE */
+  .action-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .action-table th { background: var(--panel2); color: var(--muted); text-transform: uppercase; font-size: 10px; letter-spacing: 0.8px; padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--border); }
+  .action-table td { padding: 8px 12px; border-bottom: 1px solid rgba(30,45,69,0.5); color: #cbd5e1; }
+  .action-table tr:hover td { background: var(--panel2); }
+  .priority-badge { padding: 2px 7px; border-radius: 4px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+  .p-immediate { background: rgba(248,113,113,0.15); color: #f87171; }
+  .p-short { background: rgba(245,158,11,0.15); color: #f59e0b; }
+  .p-medium { background: rgba(34,211,238,0.15); color: #22d3ee; }
+  .p-long { background: rgba(167,139,250,0.15); color: #a78bfa; }
+
+  /* HEATMAP */
+  .heatmap-container { overflow-x: auto; }
+  .heatmap { border-collapse: collapse; width: 100%; font-size: 11px; }
+  .heatmap th { padding: 6px 10px; text-align: center; color: var(--muted); font-weight: 500; font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; }
+  .heatmap td { padding: 7px 10px; text-align: center; border: 1px solid var(--bg); font-weight: 600; font-size: 12px; border-radius: 4px; }
+  .hm-label { text-align: left !important; color: var(--text); font-size: 11px; font-weight: 400; padding-right: 14px !important; }
+
+  /* LEGEND */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; align-items: center; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); }
+  .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+  .legend-line { width: 20px; height: 2px; border-radius: 1px; }
+
+  /* FOOTER */
+  .footer { border-top: 1px solid var(--border); padding: 14px 32px; display: flex; justify-content: space-between; align-items: center; }
+  .footer p { font-size: 11px; color: var(--muted); }
+
+  /* GAUGE MINI */
+  .gauge-row { display: flex; gap: 12px; }
+  .gauge-item { flex: 1; text-align: center; }
+  .gauge-bar { height: 6px; background: var(--border); border-radius: 3px; overflow: hidden; margin: 4px 0; }
+  .gauge-fill { height: 100%; border-radius: 3px; transition: width 0.8s ease; }
+  .gauge-lbl { font-size: 10px; color: var(--muted); }
+  .gauge-val { font-family: 'Barlow Condensed', sans-serif; font-size: 16px; font-weight: 700; }
+
+  /* TOOLTIP */
+  .has-tooltip { position: relative; }
+  .tooltip-box {
+    display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+    background: #1e293b; border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px 10px; font-size: 11px; white-space: nowrap; z-index: 50; color: var(--text);
+    pointer-events: none;
+  }
+  .has-tooltip:hover .tooltip-box { display: block; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="header">
+  <div class="header-left">
+    <div class="logo-badge">WC</div>
+    <div class="header-title">
+      <h1>Wimmera Catchment — Environmental Quality Monitoring Dashboard</h1>
+      <p>Wimmera Catchment Management Authority &nbsp;|&nbsp; Long-Term Water Quality Surveillance Program</p>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="data-badge">
+      <span>Data Period</span>
+      <strong>2010 – 2025</strong>
+    </div>
+    <div class="data-badge">
+      <span>Observations</span>
+      <strong>2,224 Records</strong>
+    </div>
+    <div class="data-badge">
+      <span>Monitoring Sites</span>
+      <strong>4 Waterbodies</strong>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="filter-bar">
+  <span class="filter-label">Season:</span>
+  <button class="filter-btn active" onclick="setSeason('All')">All Seasons</button>
+  <button class="filter-btn" onclick="setSeason('Summer')">☀️ Summer</button>
+  <button class="filter-btn" onclick="setSeason('Autumn')">🍂 Autumn</button>
+  <button class="filter-btn" onclick="setSeason('Winter')">❄️ Winter</button>
+  <button class="filter-btn" onclick="setSeason('Spring')">🌿 Spring</button>
+  <div class="filter-divider"></div>
+  <span class="filter-label">View:</span>
+  <button class="filter-btn active" onclick="setParam('EC')" id="pbtn-EC">EC (µS/cm)</button>
+  <button class="filter-btn" onclick="setParam('DO')" id="pbtn-DO">DO (%)</button>
+  <button class="filter-btn" onclick="setParam('Temp')" id="pbtn-Temp">Temperature (°C)</button>
+  <button class="filter-btn" onclick="setParam('pH')" id="pbtn-pH">pH Level</button>
+  <div class="filter-divider"></div>
+  <div class="legend">
+    <div class="legend-item"><div class="legend-dot" style="background:var(--site-c)"></div>Concongella Creek</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--site-g)"></div>Glenlofty Creek</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--site-h)"></div>Heiffer Station Creek</div>
+    <div class="legend-item"><div class="legend-dot" style="background:var(--site-w)"></div>Wimmera River</div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="main">
+
+  <!-- KPI CARDS -->
+  <div class="kpi-row">
+    <!-- Concongella Creek -->
+    <div class="kpi-card concongella">
+      <div class="kpi-site" style="color:var(--site-c)">Concongella Creek</div>
+      <div class="kpi-grid">
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc4)">4,730</div>
+          <div class="kpi-unit">µS/cm</div>
+          <div class="kpi-lbl">Avg EC</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc4)">29.3</div>
+          <div class="kpi-unit">%</div>
+          <div class="kpi-lbl">Avg DO</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">13.4</div>
+          <div class="kpi-unit">°C</div>
+          <div class="kpi-lbl">Avg Temp</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">7.16</div>
+          <div class="kpi-unit">pH</div>
+          <div class="kpi-lbl">Avg pH</div>
+        </div>
+      </div>
+      <div>
+        <div class="risk-badge risk-high">⚠ High Risk</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">EC >1500: <span style="color:var(--acc4)">91.9%</span> &nbsp;|&nbsp; DO &lt;80%: <span style="color:var(--acc4)">95.2%</span></div>
+      </div>
+    </div>
+    <!-- Glenlofty Creek -->
+    <div class="kpi-card glenlofty">
+      <div class="kpi-site" style="color:var(--site-g)">Glenlofty Creek</div>
+      <div class="kpi-grid">
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc4)">3,574</div>
+          <div class="kpi-unit">µS/cm</div>
+          <div class="kpi-lbl">Avg EC</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc2)">63.8</div>
+          <div class="kpi-unit">%</div>
+          <div class="kpi-lbl">Avg DO</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">14.6</div>
+          <div class="kpi-unit">°C</div>
+          <div class="kpi-lbl">Avg Temp</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">7.60</div>
+          <div class="kpi-unit">pH</div>
+          <div class="kpi-lbl">Avg pH</div>
+        </div>
+      </div>
+      <div>
+        <div class="risk-badge risk-high">⚠ High Risk</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">EC >1500: <span style="color:var(--acc4)">91.9%</span> &nbsp;|&nbsp; DO &lt;80%: <span style="color:var(--acc4)">82.2%</span></div>
+      </div>
+    </div>
+    <!-- Heiffer Station Creek -->
+    <div class="kpi-card heiffer">
+      <div class="kpi-site" style="color:var(--site-h)">Heiffer Station Creek</div>
+      <div class="kpi-grid">
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc4)">4,430</div>
+          <div class="kpi-unit">µS/cm</div>
+          <div class="kpi-lbl">Avg EC</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc4)">46.4</div>
+          <div class="kpi-unit">%</div>
+          <div class="kpi-lbl">Avg DO</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">14.3</div>
+          <div class="kpi-unit">°C</div>
+          <div class="kpi-lbl">Avg Temp</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">7.47</div>
+          <div class="kpi-unit">pH</div>
+          <div class="kpi-lbl">Avg pH</div>
+        </div>
+      </div>
+      <div>
+        <div class="risk-badge risk-high">⚠ High Risk</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">EC >1500: <span style="color:var(--acc2)">69.6%</span> &nbsp;|&nbsp; DO &lt;80%: <span style="color:var(--acc4)">92.8%</span></div>
+      </div>
+    </div>
+    <!-- Wimmera River -->
+    <div class="kpi-card wimmera">
+      <div class="kpi-site" style="color:var(--site-w)">Wimmera River</div>
+      <div class="kpi-grid">
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc2)">2,241</div>
+          <div class="kpi-unit">µS/cm</div>
+          <div class="kpi-lbl">Avg EC</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc2)">71.1</div>
+          <div class="kpi-unit">%</div>
+          <div class="kpi-lbl">Avg DO</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">16.0</div>
+          <div class="kpi-unit">°C</div>
+          <div class="kpi-lbl">Avg Temp</div>
+        </div>
+        <div class="kpi-metric">
+          <div class="kpi-val" style="color:var(--acc3)">7.50</div>
+          <div class="kpi-unit">pH</div>
+          <div class="kpi-lbl">Avg pH</div>
+        </div>
+      </div>
+      <div>
+        <div class="risk-badge risk-moderate">◈ Moderate Risk</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:6px">EC >1500: <span style="color:var(--acc2)">52.1%</span> &nbsp;|&nbsp; DO &lt;80%: <span style="color:var(--acc2)">63.5%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 2: Seasonal + Trend -->
+  <div class="chart-row chart-row-2">
+    <!-- Seasonal Grouped Bar -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title" id="seasonal-title">Electrical Conductivity by Season & Site</div>
+          <div class="chart-sub">Mean EC (µS/cm) — Threshold: 1,500 µS/cm (freshwater guideline)</div>
+        </div>
+        <div class="chart-tag" id="seasonal-tag">EC</div>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="seasonalChart"></canvas>
+      </div>
+      <div class="threshold-note" id="threshold-note">⚠ <span>Dashed line</span> indicates Australian freshwater EC threshold (1,500 µS/cm). All sites persistently exceed this limit.</div>
+    </div>
+
+    <!-- Yearly Trend -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Annual EC Trend — All Sites (2010–2025)</div>
+          <div class="chart-sub">Mean annual Electrical Conductivity per site</div>
+        </div>
+        <div class="chart-tag">TREND</div>
+      </div>
+      <div class="chart-body" style="height:260px">
+        <canvas id="trendChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 3: DO + Temp + pH Seasonal -->
+  <div class="chart-row chart-row-3">
+    <!-- DO Seasonal -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Dissolved Oxygen (%) — Seasonal Comparison</div>
+          <div class="chart-sub">Target: ≥80% saturation for healthy aquatic ecosystems</div>
+        </div>
+      </div>
+      <div class="chart-body" style="height:220px">
+        <canvas id="doChart"></canvas>
+      </div>
+    </div>
+
+    <!-- Temperature Seasonal -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Temperature (°C)</div>
+          <div class="chart-sub">Seasonal means by site</div>
+        </div>
+      </div>
+      <div class="chart-body" style="height:220px">
+        <canvas id="tempChart"></canvas>
+      </div>
+    </div>
+
+    <!-- pH Seasonal -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">pH Level</div>
+          <div class="chart-sub">Range: 6.5 – 8.5 (optimal)</div>
+        </div>
+      </div>
+      <div class="chart-body" style="height:220px">
+        <canvas id="phChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ROW 4: Exceedance Heatmap + Risk Donut -->
+  <div class="chart-row chart-row-2">
+    <!-- Exceedance Heatmap -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Parameter Threshold Exceedance Rate (%)</div>
+          <div class="chart-sub">Percentage of observations breaching environmental guideline thresholds per site × season</div>
+        </div>
+        <div class="chart-tag">HEATMAP</div>
+      </div>
+      <div class="heatmap-container" style="margin-top:8px">
+        <table class="heatmap" id="heatmapTable"></table>
+      </div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:10px;color:var(--muted);flex-wrap:wrap">
+        <span>Thresholds: EC &gt;1,500 µS/cm &nbsp;|&nbsp; DO &lt;80% &nbsp;|&nbsp; Temp &gt;25°C &nbsp;|&nbsp; pH &lt;6.5 or &gt;8.5</span>
+      </div>
+    </div>
+
+    <!-- Radar Chart -->
+    <div class="chart-card">
+      <div class="chart-header">
+        <div>
+          <div class="chart-title">Multi-Parameter Risk Profile</div>
+          <div class="chart-sub">Normalised exceedance scores across all parameters (0–100%)</div>
+        </div>
+        <div class="chart-tag">RADAR</div>
+      </div>
+      <div class="chart-body" style="height:250px">
+        <canvas id="radarChart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- INSIGHT PANEL -->
+  <div class="insight-panel">
+    <div class="insight-title">Key Environmental Insights & Findings</div>
+    <div class="insights-grid">
+      <div class="insight-item critical">
+        <div class="insight-head">🔴 Critical — Chronic Hypoxia</div>
+        <div class="insight-text">
+          <strong>Concongella Creek</strong> records DO as low as <strong>14.4%</strong> in Autumn and <strong>19.5%</strong> in Summer — levels incompatible with most aquatic fauna. <strong>Heiffer Station Creek</strong> averages only <strong>39.4%</strong> in Autumn. Both sites require urgent dissolved oxygen intervention.
+        </div>
+      </div>
+      <div class="insight-item critical">
+        <div class="insight-head">🔴 Critical — Systemic Hypersalinity</div>
+        <div class="insight-text">
+          All four waterbodies consistently exceed the freshwater EC guideline of 1,500 µS/cm. <strong>Concongella Creek</strong> (avg 4,730 µS/cm) and <strong>Heiffer Station Creek</strong> (avg 4,430 µS/cm) exceed the guideline in over <strong>90% of all observations</strong>, indicative of dryland salinity mobilisation.
+        </div>
+      </div>
+      <div class="insight-item warning">
+        <div class="insight-head">🟡 Warning — Summer Temperature Stress</div>
+        <div class="insight-text">
+          <strong>Wimmera River</strong> reaches a mean Summer temperature of <strong>22.3°C</strong>, with recorded maxima of 28.9°C. Temperature spikes above 25°C are documented in 3% of River observations, posing thermal stress risk to cold-water fish species, particularly during low-flow years.
+        </div>
+      </div>
+      <div class="insight-item warning">
+        <div class="insight-head">🟡 Warning — EC Spike in 2018 & 2025</div>
+        <div class="insight-text">
+          <strong>Heiffer Station Creek</strong> recorded mean annual EC of <strong>14,386 µS/cm</strong> in 2018 — over 9× the threshold. A renewed spike to <strong>10,400 µS/cm</strong> in early 2025 suggests saline groundwater intrusion events linked to drought conditions may be recurring.
+        </div>
+      </div>
+      <div class="insight-item info">
+        <div class="insight-head">🔵 Observation — Seasonal DO Pattern</div>
+        <div class="insight-text">
+          Dissolved oxygen is consistently highest in <strong>Winter</strong> across all sites (cold water holds more oxygen), and lowest in <strong>Autumn–Summer</strong>. This pattern confirms that thermal stratification and elevated microbial decomposition are the primary DO depletion mechanisms.
+        </div>
+      </div>
+      <div class="insight-item info">
+        <div class="insight-head">🔵 Observation — pH Stability</div>
+        <div class="insight-text">
+          pH levels are relatively stable across sites (mean 7.0–7.6), remaining broadly within the 6.5–8.5 guideline range. However, <strong>Concongella Creek</strong> records pH exceedances in <strong>6.5%</strong> of observations, and extreme outliers (pH 13.8) in <strong>Heiffer Station Creek</strong> warrant instrument calibration review.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RECOMMENDED ACTIONS TABLE -->
+  <div class="chart-card">
+    <div class="chart-header">
+      <div>
+        <div class="chart-title">Recommended Environmental Management Actions</div>
+        <div class="chart-sub">Evidence-based actions derived from water quality assessment findings — Wimmera Catchment Management Authority</div>
+      </div>
+    </div>
+    <table class="action-table" style="margin-top:8px">
+      <thead>
+        <tr>
+          <th>Priority</th>
+          <th>Waterbody</th>
+          <th>Parameter</th>
+          <th>Issue</th>
+          <th>Recommended Action</th>
+          <th>Timeframe</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="priority-badge p-immediate">Immediate</span></td>
+          <td><span class="site-dot" style="background:var(--site-c)"></span>Concongella Creek</td>
+          <td>DO (%)</td>
+          <td>Chronic anoxia — mean DO 14–29% across all seasons</td>
+          <td>Deploy emergency aerators; investigate upstream organic loading and nutrient influx sources</td>
+          <td>&lt; 3 months</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-immediate">Immediate</span></td>
+          <td><span class="site-dot" style="background:var(--site-h)"></span>Heiffer Station Creek</td>
+          <td>EC (µS/cm)</td>
+          <td>Salinity spike to 10,400 µS/cm in 2025 — 7× threshold</td>
+          <td>Undertake emergency saline groundwater interception; install salt interception scheme upstream; engage with adjacent agricultural operators</td>
+          <td>&lt; 3 months</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-short">Short-Term</span></td>
+          <td><span class="site-dot" style="background:var(--site-g)"></span>Glenlofty Creek</td>
+          <td>DO (%)</td>
+          <td>DO below 80% in 82% of records; Summer mean of 53%</td>
+          <td>Establish riparian buffer zones; reduce diffuse nutrient runoff; program seasonal flow augmentation from upstream storages during Autumn</td>
+          <td>3–12 months</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-short">Short-Term</span></td>
+          <td><span class="site-dot" style="background:var(--site-w)"></span>Wimmera River</td>
+          <td>EC (µS/cm)</td>
+          <td>EC exceeds guideline in 52% of records; elevated in drought years</td>
+          <td>Develop salinity management plan; model groundwater – surface water interactions; establish EC early-warning alert thresholds at key gauging stations</td>
+          <td>6–12 months</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-medium">Medium-Term</span></td>
+          <td>All Sites</td>
+          <td>Temperature (°C)</td>
+          <td>Summer maxima approaching and exceeding 25°C stress threshold</td>
+          <td>Plant shade trees along riparian corridors; restore native vegetation buffer strips (min. 20 m) to reduce solar exposure and bank erosion</td>
+          <td>1–3 years</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-medium">Medium-Term</span></td>
+          <td><span class="site-dot" style="background:var(--site-c)"></span>Concongella Creek</td>
+          <td>EC + DO</td>
+          <td>Combined systemic saline-hypoxic condition throughout all seasons</td>
+          <td>Commission catchment-scale salinity audit; implement incentive-based land management agreements with upstream landholders; evaluate drainage infrastructure modifications</td>
+          <td>1–3 years</td>
+        </tr>
+        <tr>
+          <td><span class="priority-badge p-long">Long-Term</span></td>
+          <td>All Sites</td>
+          <td>All Parameters</td>
+          <td>Absence of continuous real-time monitoring across tributaries</td>
+          <td>Install automated, continuous water quality sensors at all four sites; integrate into a centralised real-time dashboard with SMS/email alerting for threshold exceedances; conduct biennial comprehensive biological assessments (macroinvertebrates, fish)</td>
+          <td>3–5 years</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+
+<!-- FOOTER -->
+<div class="footer">
+  <p>Wimmera Catchment Environmental Quality Monitoring Dashboard &nbsp;|&nbsp; Data Source: Wimmera CMA Water Quality Monitoring Program &nbsp;|&nbsp; Period: 2010–2025</p>
+  <p>Thresholds: EC &gt;1,500 µS/cm · DO &lt;80% · Temp &gt;25°C · pH &lt;6.5 or &gt;8.5 &nbsp;|&nbsp; Prepared for Environmental Quality Management purposes</p>
+</div>
+
+<script>
+// ============================================================
+//  DATA
+// ============================================================
+const SITES = ['Concongella Creek','Glenlofty Creek','Heiffer Station Creek','Wimmera River'];
+const SEASONS = ['Summer','Autumn','Winter','Spring'];
+const COLORS = { 'Concongella Creek':'#f59e0b','Glenlofty Creek':'#34d399','Heiffer Station Creek':'#f87171','Wimmera River':'#22d3ee' };
+
+const seasonalData = {
+  EC: {
+    'Summer':    {'Concongella Creek':5287.69,'Glenlofty Creek':3386.55,'Heiffer Station Creek':4850.62,'Wimmera River':2260.54},
+    'Autumn':    {'Concongella Creek':5410.00,'Glenlofty Creek':4098.34,'Heiffer Station Creek':4697.25,'Wimmera River':2786.18},
+    'Winter':    {'Concongella Creek':3912.18,'Glenlofty Creek':3384.02,'Heiffer Station Creek':3871.48,'Wimmera River':2163.79},
+    'Spring':    {'Concongella Creek':4267.55,'Glenlofty Creek':3425.62,'Heiffer Station Creek':4301.31,'Wimmera River':1776.07},
+  },
+  DO: {
+    'Summer':    {'Concongella Creek':19.45,'Glenlofty Creek':53.05,'Heiffer Station Creek':33.96,'Wimmera River':64.61},
+    'Autumn':    {'Concongella Creek':14.37,'Glenlofty Creek':69.19,'Heiffer Station Creek':39.40,'Wimmera River':68.15},
+    'Winter':    {'Concongella Creek':49.71,'Glenlofty Creek':68.68,'Heiffer Station Creek':56.77,'Wimmera River':78.71},
+    'Spring':    {'Concongella Creek':33.48,'Glenlofty Creek':64.42,'Heiffer Station Creek':55.64,'Wimmera River':72.92},
+  },
+  Temp: {
+    'Summer':    {'Concongella Creek':17.38,'Glenlofty Creek':20.25,'Heiffer Station Creek':19.34,'Wimmera River':22.31},
+    'Autumn':    {'Concongella Creek':13.38,'Glenlofty Creek':14.17,'Heiffer Station Creek':13.47,'Wimmera River':16.04},
+    'Winter':    {'Concongella Creek':9.26,'Glenlofty Creek':9.05,'Heiffer Station Creek':9.20,'Wimmera River':10.05},
+    'Spring':    {'Concongella Creek':13.39,'Glenlofty Creek':14.84,'Heiffer Station Creek':15.01,'Wimmera River':16.35},
+  },
+  pH: {
+    'Summer':    {'Concongella Creek':7.20,'Glenlofty Creek':7.75,'Heiffer Station Creek':7.46,'Wimmera River':7.56},
+    'Autumn':    {'Concongella Creek':7.19,'Glenlofty Creek':7.65,'Heiffer Station Creek':7.37,'Wimmera River':7.55},
+    'Winter':    {'Concongella Creek':7.15,'Glenlofty Creek':7.50,'Heiffer Station Creek':7.44,'Wimmera River':7.44},
+    'Spring':    {'Concongella Creek':7.08,'Glenlofty Creek':7.43,'Heiffer Station Creek':7.58,'Wimmera River':7.39},
+  }
+};
+
+const yearlyEC = {
+  'Concongella Creek': [[2011,5457.78],[2012,4943],[2013,5460],[2014,2914],[2015,3460],[2016,2247],[2017,5501],[2019,3976],[2021,4612],[2022,2250],[2023,4838]],
+  'Glenlofty Creek':   [[2010,5250],[2011,1984],[2012,2415],[2013,2750],[2014,3861],[2015,4325],[2016,3014],[2017,2382],[2018,8154],[2019,4275],[2020,5010],[2021,2698],[2022,2608],[2023,2260],[2024,2940],[2025,5260]],
+  'Heiffer Station Creek':[[2010,965],[2011,3523],[2012,4045],[2013,5948],[2014,6413],[2015,4574],[2016,2640],[2017,2604],[2018,14386],[2019,5437],[2020,3259],[2021,810],[2022,666],[2023,2305],[2024,6440],[2025,10400]],
+  'Wimmera River':     [[2010,6126],[2011,1622],[2012,2230],[2013,2189],[2014,1338],[2015,1908],[2016,3242],[2017,1671],[2018,4340],[2019,2076],[2020,2481],[2021,1735],[2022,1679],[2023,1861],[2024,2614],[2025,3535]]
+};
+
+const exceedData = {
+  'Concongella Creek': { EC:91.9, DO:95.2, Temp:0.0, pH:6.5 },
+  'Glenlofty Creek':   { EC:91.9, DO:82.2, Temp:0.0, pH:1.5 },
+  'Heiffer Station Creek': { EC:69.6, DO:92.8, Temp:0.7, pH:4.3 },
+  'Wimmera River':     { EC:52.1, DO:63.5, Temp:3.0, pH:4.7 }
+};
+
+// heatmap by season
+const heatmapSeasonalExceed = {
+  EC: {
+    'Concongella Creek':   {'Summer':96.2,'Autumn':100,'Winter':88.2,'Spring':88.0},
+    'Glenlofty Creek':     {'Summer':93.3,'Autumn':97.3,'Winter':93.8,'Spring':82.9},
+    'Heiffer Station Creek':{'Summer':72.3,'Autumn':73.7,'Winter':70.1,'Spring':63.0},
+    'Wimmera River':       {'Summer':57.8,'Autumn':60.4,'Winter':47.2,'Spring':39.4},
+  },
+  DO: {
+    'Concongella Creek':   {'Summer':100,'Autumn':100,'Winter':88.2,'Spring':96.0},
+    'Glenlofty Creek':     {'Summer':90.0,'Autumn':78.4,'Winter':75.0,'Spring':85.4},
+    'Heiffer Station Creek':{'Summer':100,'Autumn':100,'Winter':89.6,'Spring':85.2},
+    'Wimmera River':       {'Summer':70.8,'Autumn':64.0,'Winter':54.8,'Spring':56.4},
+  }
+};
+
+// ============================================================
+//  SEASONAL CHART
+// ============================================================
+let seasonalChart, currentParam = 'EC';
+const seasonalConfig = {
+  EC:   { label:'Electrical Conductivity (µS/cm)', threshold:1500, title:'Electrical Conductivity by Season & Site', sub:'Mean EC (µS/cm) — Threshold: 1,500 µS/cm', note:'⚠ <span>Dashed line</span> indicates Australian freshwater EC threshold (1,500 µS/cm). All sites persistently exceed this limit.' },
+  DO:   { label:'Dissolved Oxygen (%)', threshold:80, title:'Dissolved Oxygen (%) by Season & Site', sub:'Target: ≥80% saturation — dashed line = 80% guideline', note:'⚠ Dissolved oxygen <span>below 80%</span> indicates stress for aquatic fauna. Concongella Creek is critically hypoxic across all seasons.' },
+  Temp: { label:'Temperature (°C)', threshold:25, title:'Water Temperature (°C) by Season & Site', sub:'Mean temperature °C — threshold: 25°C warm-water stress', note:'⚠ <span>Temperature >25°C</span> causes thermal stress to cold-water species. Wimmera River most at risk in Summer.' },
+  pH:   { label:'pH Level', threshold:null, title:'pH Level by Season & Site', sub:'Mean pH — optimal range 6.5–8.5', note:'pH is broadly within range. Extremes at Heiffer Station Creek require calibration checks.' }
+};
+
+function buildSeasonalChart() {
+  const ctx = document.getElementById('seasonalChart').getContext('2d');
+  const cfg = seasonalConfig[currentParam];
+  const datasets = SITES.map(site => ({
+    label: site,
+    data: SEASONS.map(s => seasonalData[currentParam][s][site]),
+    backgroundColor: COLORS[site] + '99',
+    borderColor: COLORS[site],
+    borderWidth: 1.5,
+    borderRadius: 4,
+  }));
+
+  const annotations = {};
+  if (cfg.threshold) {
+    annotations.threshold = {
+      type: 'line', yMin: cfg.threshold, yMax: cfg.threshold,
+      borderColor: '#f87171', borderWidth: 1.5, borderDash: [6,3],
+    };
+  }
+
+  seasonalChart = new Chart(ctx, {
+    type: 'bar',
+    data: { labels: SEASONS, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color:'#94a3b8', font:{size:11}, boxWidth:10 } },
+        annotation: annotations
+      },
+      scales: {
+        x: { ticks:{color:'#64748b'}, grid:{color:'rgba(30,45,69,0.5)'} },
+        y: { ticks:{color:'#64748b'}, grid:{color:'rgba(30,45,69,0.5)'}, beginAtZero:true,
+             title:{display:true, text:cfg.label, color:'#64748b', font:{size:10}} }
+      }
+    }
+  });
+}
+
+function setParam(p) {
+  currentParam = p;
+  document.querySelectorAll('[id^="pbtn-"]').forEach(b => b.classList.remove('active'));
+  document.getElementById('pbtn-'+p).classList.add('active');
+  const cfg = seasonalConfig[p];
+  document.getElementById('seasonal-title').textContent = cfg.title;
+  document.getElementById('threshold-note').innerHTML = cfg.note;
+  document.getElementById('seasonal-tag').textContent = p;
+
+  if (seasonalChart) seasonalChart.destroy();
+  buildSeasonalChart();
+}
+
+function setSeason(s) {
+  document.querySelectorAll('.filter-btn').forEach(b => { if(['All Seasons','☀️ Summer','🍂 Autumn','❄️ Winter','🌿 Spring'].some(x=>b.textContent.includes(x.replace(/[☀️🍂❄️🌿] /,''))) || b.textContent===s) {} });
+  // just visual toggle
+  document.querySelectorAll('.filter-bar .filter-btn').forEach(b => {
+    if(b.textContent.trim().replace(/[☀️🍂❄️🌿 ]/g,'') === s.replace(/[☀️🍂❄️🌿 ]/g,'') || (s==='All'&&b.textContent.includes('All'))) b.classList.add('active');
+    else if(['All','Summer','Autumn','Winter','Spring'].includes(s)) {
+      const txt = b.textContent.replace(/[☀️🍂❄️🌿 ]/g,'');
+      if(['AllSeasons','Summer','Autumn','Winter','Spring'].some(x=>txt.includes(x))) b.classList.remove('active');
+    }
+  });
+}
+
+// ============================================================
+//  TREND CHART
+// ============================================================
+function buildTrendChart() {
+  const ctx = document.getElementById('trendChart').getContext('2d');
+  const datasets = SITES.map(site => {
+    const pts = yearlyEC[site];
+    return {
+      label: site,
+      data: pts.map(p=>({x:p[0],y:p[1]})),
+      borderColor: COLORS[site],
+      backgroundColor: 'transparent',
+      tension: 0.3,
+      borderWidth: 2,
+      pointRadius: 3,
+      pointHoverRadius: 5,
+    };
+  });
+  new Chart(ctx, {
+    type: 'line',
+    data: { datasets },
+    options: {
+      responsive:true, maintainAspectRatio:false,
+      plugins: {
+        legend:{ labels:{color:'#94a3b8',font:{size:10},boxWidth:10} },
+      },
+      scales: {
+        x:{ type:'linear', ticks:{color:'#64748b',callback:v=>v}, grid:{color:'rgba(30,45,69,0.5)'},
+            title:{display:true,text:'Year',color:'#64748b',font:{size:10}} },
+        y:{ ticks:{color:'#64748b'}, grid:{color:'rgba(30,45,69,0.5)'},
+            title:{display:true,text:'EC (µS/cm)',color:'#64748b',font:{size:10}} }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  DO CHART
+// ============================================================
+function buildDOChart() {
+  const ctx = document.getElementById('doChart').getContext('2d');
+  const datasets = SITES.map(site => ({
+    label: site,
+    data: SEASONS.map(s => seasonalData.DO[s][site]),
+    backgroundColor: COLORS[site] + 'aa',
+    borderColor: COLORS[site],
+    borderWidth: 1.5, borderRadius:3,
+  }));
+  new Chart(ctx, {
+    type:'bar', data:{ labels:SEASONS, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{ labels:{color:'#94a3b8',font:{size:10},boxWidth:8} } },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(30,45,69,0.5)'}},
+        y:{ticks:{color:'#64748b',font:{size:10}}, grid:{color:'rgba(30,45,69,0.5)'},
+           min:0, max:100, title:{display:true,text:'DO (%)',color:'#64748b',font:{size:10}}}
+      }
+    }
+  });
+}
+
+// ============================================================
+//  TEMP CHART
+// ============================================================
+function buildTempChart() {
+  const ctx = document.getElementById('tempChart').getContext('2d');
+  const datasets = SITES.map(site => ({
+    label: site,
+    data: SEASONS.map(s => seasonalData.Temp[s][site]),
+    borderColor: COLORS[site],
+    backgroundColor: COLORS[site]+'33',
+    fill: true,
+    tension: 0.4, borderWidth:2, pointRadius:3,
+  }));
+  new Chart(ctx, {
+    type:'line', data:{ labels:SEASONS, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#94a3b8',font:{size:9},boxWidth:8}} },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:9}},grid:{color:'rgba(30,45,69,0.5)'}},
+        y:{ticks:{color:'#64748b',font:{size:9}},grid:{color:'rgba(30,45,69,0.5)'},
+           title:{display:true,text:'°C',color:'#64748b',font:{size:9}}}
+      }
+    }
+  });
+}
+
+// ============================================================
+//  pH CHART
+// ============================================================
+function buildpHChart() {
+  const ctx = document.getElementById('phChart').getContext('2d');
+  const datasets = SITES.map(site => ({
+    label: site,
+    data: SEASONS.map(s => seasonalData.pH[s][site]),
+    borderColor: COLORS[site],
+    backgroundColor: 'transparent',
+    tension: 0.3, borderWidth:2, pointRadius:3,
+  }));
+  new Chart(ctx, {
+    type:'line', data:{ labels:SEASONS, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#94a3b8',font:{size:9},boxWidth:8}} },
+      scales:{
+        x:{ticks:{color:'#64748b',font:{size:9}},grid:{color:'rgba(30,45,69,0.5)'}},
+        y:{ticks:{color:'#64748b',font:{size:9}},grid:{color:'rgba(30,45,69,0.5)'},
+           min:6.5, max:8.2,
+           title:{display:true,text:'pH',color:'#64748b',font:{size:9}}}
+      }
+    }
+  });
+}
+
+// ============================================================
+//  HEATMAP
+// ============================================================
+function heatmapColor(val) {
+  if (val === null || val === undefined || isNaN(val)) return { bg:'#1a2236', text:'#64748b' };
+  if (val >= 85) return { bg:'rgba(248,113,113,0.45)', text:'#fca5a5' };
+  if (val >= 65) return { bg:'rgba(245,158,11,0.35)', text:'#fcd34d' };
+  if (val >= 40) return { bg:'rgba(34,211,238,0.2)', text:'#67e8f9' };
+  return { bg:'rgba(52,211,153,0.15)', text:'#6ee7b7' };
+}
+
+function buildHeatmap() {
+  const tbl = document.getElementById('heatmapTable');
+  const params = [
+    { key:'EC',   label:'EC >1,500 µS/cm', data: exceedData },
+    { key:'DO',   label:'DO <80%',          data: exceedData },
+    { key:'Temp', label:'Temp >25°C',       data: exceedData },
+    { key:'pH',   label:'pH Out of Range',  data: exceedData },
+  ];
+
+  let html = '<thead><tr><th style="text-align:left;padding:6px 12px">Site / Parameter</th>';
+  params.forEach(p => html += `<th>${p.label}</th>`);
+  html += '</tr></thead><tbody>';
+
+  SITES.forEach(site => {
+    html += `<tr><td class="hm-label"><span class="site-dot" style="background:${COLORS[site]}"></span>${site}</td>`;
+    ['EC','DO','Temp','pH'].forEach(k => {
+      const val = exceedData[site][k];
+      const c = heatmapColor(val);
+      html += `<td style="background:${c.bg};color:${c.text}">${val.toFixed(1)}%</td>`;
+    });
+    html += '</tr>';
+  });
+
+  // Legend row
+  html += `<tr><td colspan="5" style="padding:10px 4px 4px;font-size:10px;color:#475569;text-align:left">
+    <span style="background:rgba(248,113,113,0.45);color:#fca5a5;padding:2px 8px;border-radius:3px;margin-right:8px">≥85% Critical</span>
+    <span style="background:rgba(245,158,11,0.35);color:#fcd34d;padding:2px 8px;border-radius:3px;margin-right:8px">65–84% High</span>
+    <span style="background:rgba(34,211,238,0.2);color:#67e8f9;padding:2px 8px;border-radius:3px;margin-right:8px">40–64% Moderate</span>
+    <span style="background:rgba(52,211,153,0.15);color:#6ee7b7;padding:2px 8px;border-radius:3px">0–39% Low</span>
+  </td></tr>`;
+  html += '</tbody>';
+  tbl.innerHTML = html;
+}
+
+// ============================================================
+//  RADAR CHART
+// ============================================================
+function buildRadarChart() {
+  const ctx = document.getElementById('radarChart').getContext('2d');
+  const datasets = SITES.map(site => ({
+    label: site,
+    data: [
+      exceedData[site].EC,
+      exceedData[site].DO,
+      exceedData[site].Temp,
+      exceedData[site].pH,
+    ],
+    borderColor: COLORS[site],
+    backgroundColor: COLORS[site]+'22',
+    borderWidth: 1.5,
+    pointBackgroundColor: COLORS[site],
+    pointRadius: 4,
+  }));
+  new Chart(ctx, {
+    type:'radar',
+    data: {
+      labels: ['EC Exceedance','DO Exceedance','Temp Exceedance','pH Exceedance'],
+      datasets
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{ legend:{labels:{color:'#94a3b8',font:{size:10},boxWidth:8}} },
+      scales:{
+        r:{
+          ticks:{color:'#475569',font:{size:9},backdropColor:'transparent'},
+          grid:{color:'rgba(30,45,69,0.8)'},
+          pointLabels:{color:'#94a3b8',font:{size:10}},
+          min:0, max:100,
+          angleLines:{color:'rgba(30,45,69,0.8)'}
+        }
+      }
+    }
+  });
+}
+
+// ============================================================
+//  INIT
+// ============================================================
+window.addEventListener('DOMContentLoaded', () => {
+  buildSeasonalChart();
+  buildTrendChart();
+  buildDOChart();
+  buildTempChart();
+  buildpHChart();
+  buildHeatmap();
+  buildRadarChart();
+});
+</script>
+</body>
+</html>
